@@ -22,10 +22,7 @@ use futures::future::{Future};
 use mouscache::{CacheAccess, RedisCache};
 
 use regex::Regex;
-
 use uuid::Uuid;
-
-struct QuiVive;
 
 #[derive(Cacheable, Clone, Debug)]
 struct QuiViveEntry {
@@ -33,6 +30,8 @@ struct QuiViveEntry {
     key: String,
     value: String,
 }
+
+struct QuiVive;
 
 impl Service for QuiVive {
     type Request = Request;
@@ -76,21 +75,42 @@ impl Service for QuiVive {
                     }
                 ))
             }
+            (&Post, ref x) if RE_TOKEN_KEY.is_match(x) => {
+                let cap = RE_TOKEN_KEY.captures(x).unwrap();
+                let token = cap[1].to_string();
+                let key = cap[2].to_string();
+                let value = "replace with body value".to_string();
+
+                Box::new(futures::future::ok(
+                    if let Ok(mut cache) = RedisCache::new("localhost", None) {
+                        let entry = QuiViveEntry { token: token.clone(), key: key.clone(), value: value.clone() };
+                        let _ = cache.insert(key.clone(), entry.clone());
+                        Response::new()
+                            .with_status(StatusCode::Ok)
+                            .with_body(token)
+                    } else {
+                        Response::new()
+                            .with_status(StatusCode::NotFound)
+                    }
+                ))
+            }
             (&Post, ref x) if RE_TOKEN_KEY_VALUE.is_match(x) => {
                 let cap = RE_TOKEN_KEY_VALUE.captures(x).unwrap();
                 let token = cap[1].to_string();
                 let key = cap[2].to_string();
                 let value = cap[3].to_string();
 
-                if let Ok(mut cache) = RedisCache::new("localhost", None) {
-                    let entry = QuiViveEntry { token: token.clone(), key: key.clone(), value: value.clone() };
-                    let _ = cache.insert(key.clone(), entry.clone());
-                }
-
                 Box::new(futures::future::ok(
-                    Response::new()
-                        .with_status(StatusCode::Ok)
-                        .with_body(token)
+                    if let Ok(mut cache) = RedisCache::new("localhost", None) {
+                        let entry = QuiViveEntry { token: token.clone(), key: key.clone(), value: value.clone() };
+                        let _ = cache.insert(key.clone(), entry.clone());
+                        Response::new()
+                            .with_status(StatusCode::Ok)
+                            .with_body(token)
+                    } else {
+                        Response::new()
+                            .with_status(StatusCode::NotFound)
+                    }
                 ))
             }
             (&Get, ref x) if RE_TOKEN_KEY.is_match(x) => {
@@ -109,6 +129,12 @@ impl Service for QuiVive {
                             .with_status(StatusCode::NotFound)
                             .with_body(token)
                     }
+                ))
+            }
+            (&Get, "/health") => {
+                Box::new(futures::future::ok(
+                        Response::new()
+                            .with_status(StatusCode::Ok)
                 ))
             }
             _ => Box::new(futures::future::ok(
