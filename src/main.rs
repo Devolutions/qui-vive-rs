@@ -58,12 +58,7 @@ impl Service for QuiVive {
 
     fn call(&self, request: Request) -> Self::Future {
 
-        /**
-         * key-value storage:
-         * POST 	/key
-         * POST     /key/{id}
-         * GET  	/key/{id}
-        */
+        let url_prefix = "http://127.0.0.1:8080";
 
         lazy_static! {
             static ref RE_KEY: Regex = Regex::new(r"^/key$").unwrap();
@@ -86,13 +81,14 @@ impl Service for QuiVive {
                     }
 
                     let entry = QuiViveKey { key: key.clone(), value: value };
+                    let result = format!("{}/key/{}\n", url_prefix, key);
 
                     let mut cache_guard = cache.lock().unwrap();
                     if let Ok(_) = cache_guard.insert(key.clone(), entry.clone()) {
                         Response::new()
                             .with_status(StatusCode::Ok)
                             .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
-                            .with_body(key + "\n")
+                            .with_body(result)
                     } else {
                         Response::new()
                             .with_status(StatusCode::NotFound)
@@ -112,13 +108,14 @@ impl Service for QuiVive {
                     }
 
                     let entry = QuiViveKey { key: key.clone(), value: value };
+                    let result = format!("{}/key/{}\n", url_prefix, key);
 
                     let mut cache_guard = cache.lock().unwrap();
                     if let Ok(_) = cache_guard.insert(key.clone(), entry.clone()) {
                         Response::new()
                             .with_status(StatusCode::Ok)
                             .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
-                            .with_body(key + "\n")
+                            .with_body(result)
                     } else {
                         Response::new()
                             .with_status(StatusCode::NotFound)
