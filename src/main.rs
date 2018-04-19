@@ -1,7 +1,7 @@
 extern crate hyper;
 extern crate futures;
 extern crate regex;
-extern crate uuid;
+extern crate rand;
 extern crate mouscache;
 #[macro_use]
 extern crate mouscache_derive;
@@ -13,29 +13,41 @@ extern crate env_logger;
 #[macro_use]
 extern crate lazy_static;
 
-use hyper::{Body, StatusCode};
+use hyper::{Body, StatusCode, mime};
 use hyper::Method::{Get, Post};
+use hyper::header::{ContentType};
 use hyper::server::{Request, Response, Service};
 
 use futures::Future;
 use futures::stream::{Stream};
 
-use mouscache::{CacheAccess, RedisCache};
+use mouscache::{MemoryCache, RedisCache};
 
+use rand::{thread_rng, Rng};
 use regex::Regex;
-use uuid::Uuid;
 
 use std::sync::{Arc, Mutex};
 
 #[derive(Cacheable, Clone, Debug)]
-struct QuiViveEntry {
-    token: String,
+struct QuiViveKey {
     key: String,
     value: String,
 }
 
 struct QuiVive {
-    pub cache: Arc<Mutex<mouscache::Cache<RedisCache>>>,
+    pub cache: Arc<Mutex<mouscache::Cache>>,
+}
+
+fn gen_id() -> Option<String> {
+    const CHARSET: &[u8] = b"23456789\
+    abcdefghjkimnpqrstuvwxyz\
+    ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+    let mut rng = thread_rng();
+    let id: Option<String> = (0..9)
+        .map(|_| Some(*rng.choose(CHARSET)? as char))
+        .collect();
+    id
 }
 
 impl Service for QuiVive {
@@ -47,85 +59,82 @@ impl Service for QuiVive {
     fn call(&self, request: Request) -> Self::Future {
 
         /**
-         * https://github.com/kvaas/docs/blob/master/REST%20API.md
-         * POST 	/new/{key}
-         * POST 	/{token}/{key}
-         * POST 	/{token}/{key}/{value}
-         * GET  	/{token}/{key}
+         * key-value storage:
+         * POST 	/key
+         * POST     /key/{id}
+         * GET  	/key/{id}
         */
 
         lazy_static! {
-            static ref RE_NEW_KEY: Regex = Regex::new(r"^/new/(\w+)$").unwrap();
-            static ref RE_TOKEN_KEY: Regex = Regex::new(r"^/(\w+)/(\w+)$").unwrap();
-            static ref RE_TOKEN_KEY_VALUE: Regex = Regex::new(r"^/(\w+)/(\w+)/(\w+)$").unwrap();
+            static ref RE_KEY: Regex = Regex::new(r"^/key$").unwrap();
+            static ref RE_KEY_ID: Regex = Regex::new(r"^/key/(\w+)$").unwrap();
         }
 
         let method = request.method().clone();
         let path = request.path().clone().to_owned();
 
         match (method, path.as_str()) {
-            (Post, ref x) if RE_NEW_KEY.is_match(x) => {
-                let cap = RE_NEW_KEY.captures(x).unwrap();
-                let key = cap[1].to_string();
-                let token = Uuid::new_v4().to_string();
-                let value = "".to_string();
-
-                let entry = QuiViveEntry { token: token.clone(), key: key.clone(), value: value.clone() };
-                if let Ok(_) = self.cache.lock().unwrap().insert(key.clone(), entry.clone()) {
-                    Box::new(futures::future::ok(Response::new()
-                        .with_status(StatusCode::Ok)
-                        .with_body(token)))
-                } else {
-                    Box::new(futures::future::ok(Response::new()
-                        .with_status(StatusCode::NotFound)))
-                }
-            }
-            (Post, ref x) if RE_TOKEN_KEY.is_match(x) => {
-                let cap = RE_TOKEN_KEY.captures(x).unwrap();
-                let token = cap[1].to_string();
-                let key = cap[2].to_string();
-
+            (Post, ref x) if RE_KEY.is_match(x) => {
+                let key = gen_id().unwrap();
                 let cache = self.cache.clone();
 
                 Box::new(request.body().concat2().map(move|body| {
-                    let value = String::from_utf8(body.to_vec()).unwrap();
-                    let entry = QuiViveEntry { token: token.clone(), key: key.clone(), value: value };
+                    let mut value = String::from_utf8(body.to_vec()).unwrap();
+
+                    if !value.ends_with('\n') {
+                        value.push('\n');
+                    }
+
+                    let entry = QuiViveKey { key: key.clone(), value: value };
 
                     let mut cache_guard = cache.lock().unwrap();
                     if let Ok(_) = cache_guard.insert(key.clone(), entry.clone()) {
                         Response::new()
                             .with_status(StatusCode::Ok)
-                            .with_body(token)
+                            .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
+                            .with_body(key + "\n")
                     } else {
                         Response::new()
                             .with_status(StatusCode::NotFound)
                     }
                 }))
             }
-            (Post, ref x) if RE_TOKEN_KEY_VALUE.is_match(x) => {
-                let cap = RE_TOKEN_KEY_VALUE.captures(x).unwrap();
-                let token = cap[1].to_string();
-                let key = cap[2].to_string();
-                let value = cap[3].to_string();
+            (Post, ref x) if RE_KEY_ID.is_match(x) => {
+                let cap = RE_KEY_ID.captures(x).unwrap();
+                let key = cap[1].to_string();
+                let cache = self.cache.clone();
 
-                let entry = QuiViveEntry { token: token.clone(), key: key.clone(), value: value.clone() };
-                if let Ok(_) = self.cache.lock().unwrap().insert(key.clone(), entry.clone()) {
-                    Box::new(futures::future::ok(Response::new()
-                        .with_status(StatusCode::Ok)
-                        .with_body(token)))
-                } else {
-                    Box::new(futures::future::ok(Response::new()
-                        .with_status(StatusCode::NotFound)))
-                }
+                Box::new(request.body().concat2().map(move|body| {
+                    let mut value = String::from_utf8(body.to_vec()).unwrap();
+
+                    if !value.ends_with('\n') {
+                        value.push('\n');
+                    }
+
+                    let entry = QuiViveKey { key: key.clone(), value: value };
+
+                    let mut cache_guard = cache.lock().unwrap();
+                    if let Ok(_) = cache_guard.insert(key.clone(), entry.clone()) {
+                        Response::new()
+                            .with_status(StatusCode::Ok)
+                            .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
+                            .with_body(key + "\n")
+                    } else {
+                        Response::new()
+                            .with_status(StatusCode::NotFound)
+                    }
+                }))
             }
-            (Get, ref x) if RE_TOKEN_KEY.is_match(x) => {
-                let cap = RE_TOKEN_KEY.captures(x).unwrap();
-                let key = cap[2].to_string();
+            (Get, ref x) if RE_KEY_ID.is_match(x) => {
+                let cap = RE_KEY_ID.captures(x).unwrap();
+                let key = cap[1].to_string();
 
-                if let Some(entry) = self.cache.lock().unwrap().get::<String, QuiViveEntry>(key.clone()) {
+                if let Some(entry) = self.cache.lock().unwrap().get::<String, QuiViveKey>(key.clone()) {
                     Box::new(futures::future::ok(Response::new()
                         .with_status(StatusCode::Ok)
-                        .with_body(entry.value)))
+                        .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
+                        .with_body(entry.value)
+                    ))
                 } else {
                     Box::new(futures::future::ok(Response::new()
                         .with_status(StatusCode::NotFound)))
@@ -149,7 +158,7 @@ fn main() {
     let new_service = || {
         let cache = match RedisCache::new("localhost", None) {
             Ok(cache) => cache,
-            Err(_) => unreachable!()
+            Err(_) => MemoryCache::new()
         };
         Ok(QuiVive{ cache: Arc::new(Mutex::new(cache)) } )
     };
