@@ -33,8 +33,9 @@ use url::{Url};
 
 use std::sync::{Arc, Mutex};
 
-header! { (QuiViveIdParam, "QuiVive-IdParam") => [String] }
 header! { (QuiViveDstUrl, "QuiVive-DstUrl") => [String] }
+header! { (QuiViveIdParam, "QuiVive-IdParam") => [String] }
+header! { (QuiViveSrcParam, "QuiVive-SrcParam") => [String] }
 
 #[derive(Cacheable, Clone, Debug)]
 struct QuiViveEntry {
@@ -172,16 +173,22 @@ impl Service for QuiVive {
                 let cache = self.cache.clone();
                 let url_prefix = self.url_prefix.clone();
 
-                if !(request.headers().has::<QuiViveDstUrl>() &&
-                    request.headers().has::<QuiViveIdParam>()) {
+                if !request.headers().has::<QuiViveDstUrl>() {
                     Box::new(futures::future::ok(Response::new()
                         .with_status(StatusCode::BadRequest)))
                 } else {
                     let dst_url = request.headers().get::<QuiViveDstUrl>().unwrap().to_string();
-                    let id_param = request.headers().get::<QuiViveIdParam>().unwrap().to_string();
 
                     let mut url = Url::parse(&dst_url).unwrap();
-                    url.query_pairs_mut().append_pair(id_param.as_ref(), id.as_ref());
+
+                    if let Some(id_param) = request.headers().get::<QuiViveIdParam>() {
+                        url.query_pairs_mut().append_pair(id_param.to_string().as_ref(), id.as_ref());
+                    }
+
+                    if let Some(src_param) = request.headers().get::<QuiViveSrcParam>() {
+                        let src_url = url_prefix.clone();
+                        url.query_pairs_mut().append_pair(src_param.to_string().as_ref(), src_url.as_ref());
+                    }
 
                     Box::new(request.body().concat2().map(move |body| {
                         let mut value = String::from_utf8(body.to_vec()).unwrap();
