@@ -15,7 +15,7 @@ extern crate lazy_static;
 
 use hyper::{Body, StatusCode, mime};
 use hyper::Method::{Get, Post};
-use hyper::header::{ContentType};
+use hyper::header::{ContentType, Location};
 use hyper::server::{Request, Response, Service};
 
 use futures::Future;
@@ -59,11 +59,11 @@ impl Service for QuiVive {
 
     fn call(&self, request: Request) -> Self::Future {
 
-        //let url_prefix = "http://127.0.0.1:8080";
-
         lazy_static! {
             static ref RE_KEY: Regex = Regex::new(r"^/key$").unwrap();
             static ref RE_KEY_ID: Regex = Regex::new(r"^/key/(\w+)$").unwrap();
+            static ref RE_URL: Regex = Regex::new(r"^/url$").unwrap();
+            static ref RE_URL_ID: Regex = Regex::new(r"^/url/(\w+)$").unwrap();
         }
 
         let method = request.method().clone();
@@ -106,6 +106,47 @@ impl Service for QuiVive {
                         .with_status(StatusCode::Ok)
                         .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
                         .with_body(entry.value)
+                    ))
+                } else {
+                    Box::new(futures::future::ok(Response::new()
+                        .with_status(StatusCode::NotFound)))
+                }
+            }
+            (Post, ref x) if RE_URL.is_match(x) => {
+                let id = gen_id().unwrap();
+                let cache = self.cache.clone();
+                let url_prefix = self.url_prefix.clone();
+
+                Box::new(request.body().concat2().map(move|body| {
+                    let mut value = String::from_utf8(body.to_vec()).unwrap();
+
+                    if !value.ends_with('\n') {
+                        value.push('\n');
+                    }
+
+                    let entry = QuiViveKey { id: id.clone(), value: value };
+                    let result = format!("{}/url/{}\n", url_prefix, id);
+
+                    let mut cache_guard = cache.lock().unwrap();
+                    if let Ok(_) = cache_guard.insert(id.clone(), entry.clone()) {
+                        Response::new()
+                            .with_status(StatusCode::Ok)
+                            .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
+                            .with_body(result)
+                    } else {
+                        Response::new()
+                            .with_status(StatusCode::NotFound)
+                    }
+                }))
+            }
+            (Get, ref x) if RE_URL_ID.is_match(x) => {
+                let cap = RE_URL_ID.captures(x).unwrap();
+                let id = cap[1].to_string();
+
+                if let Some(entry) = self.cache.lock().unwrap().get::<String, QuiViveKey>(id.clone()) {
+                    Box::new(futures::future::ok(Response::new()
+                        .with_status(StatusCode::MovedPermanently)
+                        .with_header(Location::new(entry.value))
                     ))
                 } else {
                     Box::new(futures::future::ok(Response::new()
