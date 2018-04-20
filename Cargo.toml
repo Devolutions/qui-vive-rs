@@ -14,3 +14,4 @@ rand = "0.4"
 url = "1.7"
 mouscache = "0.3"
 mouscache_derive = "0.3"
+clap = { version = "2.31", features = ["yaml"] }

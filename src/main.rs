@@ -6,6 +6,9 @@ extern crate regex;
 extern crate rand;
 extern crate url;
 
+#[macro_use]
+extern crate clap;
+
 extern crate mouscache;
 #[macro_use]
 extern crate mouscache_derive;
@@ -26,6 +29,8 @@ use futures::Future;
 use futures::stream::{Stream};
 
 use mouscache::{MemoryCache, RedisCache};
+
+use clap::App;
 
 use rand::{thread_rng, Rng};
 use regex::Regex;
@@ -260,7 +265,17 @@ impl Service for QuiVive {
 
 fn main() {
     env_logger::init();
+
+    let yaml = load_yaml!("cli.yml");
+    let matches = App::from_yaml(yaml).get_matches();
+
     let address = "127.0.0.1:8080".parse().unwrap();
+    let external_url = matches.value_of("external-url").unwrap_or("127.0.0.1:8080");
+    let listener_url = matches.value_of("listener-url").unwrap_or("127.0.0.1:8080");
+
+    println!("external-url: {}", external_url);
+    println!("listener-url: {}", listener_url);
+
     let new_service = || {
         let cache = match RedisCache::new("localhost", None) {
             Ok(cache) => cache,
@@ -274,6 +289,7 @@ fn main() {
     let server = hyper::server::Http::new()
         .bind(&address, new_service)
         .unwrap();
+
     info!("running qui-vive at {}", address);
     server.run().unwrap();
 }

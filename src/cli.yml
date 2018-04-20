@@ -1,0 +1,25 @@
+name: qui-vive
+version: "0.1.0"
+author: Marc-André Moreau <marcandre.moreau@gmail.com>
+about: a key-value store and url shortener that is always on alert
+args:
+    - config:
+        short: c
+        long: config
+        value_name: FILE
+        help: Sets a custom config file
+        takes_value: true
+    - external-url:
+        long: external-url
+        value_name: URL
+        help: The external URL
+        takes_value: true
+    - listener-url:
+        long: listener-url
+        value_name: URL
+        help: The listener URL
+        takes_value: true
+    - verbose:
+        short: v
+        multiple: true
+        help: Sets the level of verbosity
