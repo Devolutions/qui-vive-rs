@@ -4,6 +4,7 @@ extern crate hyper;
 extern crate futures;
 extern crate regex;
 extern crate rand;
+extern crate url;
 
 extern crate mouscache;
 #[macro_use]
@@ -28,10 +29,12 @@ use mouscache::{MemoryCache, RedisCache};
 
 use rand::{thread_rng, Rng};
 use regex::Regex;
+use url::{Url};
 
 use std::sync::{Arc, Mutex};
 
-header! { (Destination, "Destination") => [String] }
+header! { (QuiViveIdParam, "QuiVive-IdParam") => [String] }
+header! { (QuiViveDstUrl, "QuiVive-DstUrl") => [String] }
 
 #[derive(Cacheable, Clone, Debug)]
 struct QuiViveEntry {
@@ -169,29 +172,39 @@ impl Service for QuiVive {
                 let cache = self.cache.clone();
                 let url_prefix = self.url_prefix.clone();
 
-                Box::new(request.body().concat2().map(move|body| {
-                    let mut value = String::from_utf8(body.to_vec()).unwrap();
+                if !(request.headers().has::<QuiViveDstUrl>() &&
+                    request.headers().has::<QuiViveIdParam>()) {
+                    Box::new(futures::future::ok(Response::new()
+                        .with_status(StatusCode::BadRequest)))
+                } else {
+                    let dst_url = request.headers().get::<QuiViveDstUrl>().unwrap().to_string();
+                    let id_param = request.headers().get::<QuiViveIdParam>().unwrap().to_string();
 
-                    if !value.ends_with('\n') {
-                        value.push('\n');
-                    }
+                    let mut url = Url::parse(&dst_url).unwrap();
+                    url.query_pairs_mut().append_pair(id_param.as_ref(), id.as_ref());
 
-                    let url = value.clone();
+                    Box::new(request.body().concat2().map(move |body| {
+                        let mut value = String::from_utf8(body.to_vec()).unwrap();
 
-                    let entry = QuiViveEntry { id: id.clone(), val: value, url: url };
-                    let result = format!("{}/{}\n", url_prefix, id);
+                        if !value.ends_with('\n') {
+                            value.push('\n');
+                        }
 
-                    let mut cache_guard = cache.lock().unwrap();
-                    if let Ok(_) = cache_guard.insert(id.clone(), entry.clone()) {
-                        Response::new()
-                            .with_status(StatusCode::Ok)
-                            .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
-                            .with_body(result)
-                    } else {
-                        Response::new()
-                            .with_status(StatusCode::NotFound)
-                    }
-                }))
+                        let entry = QuiViveEntry { id: id.clone(), val: value, url: url.to_string() };
+                        let result = format!("{}/{}\n", url_prefix, id);
+
+                        let mut cache_guard = cache.lock().unwrap();
+                        if let Ok(_) = cache_guard.insert(id.clone(), entry.clone()) {
+                            Response::new()
+                                .with_status(StatusCode::Ok)
+                                .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
+                                .with_body(result)
+                        } else {
+                            Response::new()
+                                .with_status(StatusCode::NotFound)
+                        }
+                    }))
+                }
             }
             (Get, ref x) if RE_INV_ID.is_match(x) => {
                 let cap = RE_INV_ID.captures(x).unwrap();
