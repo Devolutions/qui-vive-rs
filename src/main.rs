@@ -20,7 +20,7 @@ extern crate env_logger;
 #[macro_use]
 extern crate lazy_static;
 
-use hyper::{Body, StatusCode, mime};
+use hyper::{Body, StatusCode, Uri, mime};
 use hyper::Method::{Get, Post};
 use hyper::header::{ContentType, Location};
 use hyper::server::{Request, Response, Service};
@@ -35,6 +35,7 @@ use regex::Regex;
 use url::{Url};
 
 use std::sync::{Arc, Mutex};
+use std::net::{SocketAddr};
 
 mod config;
 use config::QuiViveConfig;
@@ -102,6 +103,8 @@ impl Service for QuiViveService {
                     if !value.ends_with('\n') {
                         value.push('\n');
                     }
+
+                    debug!("key: {} value: {}", id, value);
 
                     let entry = QuiViveEntry { id: id.clone(), val: value, url: "".to_string() };
                     let result = format!("{}/key/{}\n", external_url, id);
@@ -268,11 +271,12 @@ fn main() {
     cfg.load_cli();
     cfg.load_env();
 
-    let address = cfg.listener_url.parse().unwrap();
+    let url: Uri = cfg.listener_url.parse().unwrap();
+    let address: SocketAddr = url.authority().unwrap().parse().unwrap();
 
     let new_service = move || {
 
-        let redis_hostname = cfg.redis_hostname.as_ref().map_or("", |x| { x.as_str() });
+        let redis_hostname = cfg.redis_hostname.as_ref().map_or("localhost", |x| { x.as_str() });
 
         let cache = match RedisCache::new(redis_hostname, None) {
             Ok(cache) => cache,
