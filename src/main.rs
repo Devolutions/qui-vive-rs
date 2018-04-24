@@ -277,8 +277,9 @@ fn main() {
     let new_service = move || {
 
         let redis_hostname = cfg.redis_hostname.as_ref().map_or("localhost", |x| { x.as_str() });
+        let redis_password = cfg.redis_password.as_ref().map(String::as_str);
 
-        let cache = match RedisCache::new(redis_hostname, None) {
+        let cache = match RedisCache::new(redis_hostname, redis_password) {
             Ok(cache) => cache,
             Err(_) => MemoryCache::new()
         };

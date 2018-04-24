@@ -1,23 +1,16 @@
 name: qui-vive
-version: "0.1.0"
 author: Marc-André Moreau <marcandre.moreau@gmail.com>
 about: a key-value store and url shortener that is always on alert
 args:
-    - config:
-        short: c
-        long: config
-        value_name: FILE
-        help: Sets a custom config file
-        takes_value: true
     - external-url:
         long: external-url
         value_name: URL
-        help: The external URL
+        help: The external URL (https://qui-vive.link)
         takes_value: true
     - listener-url:
         long: listener-url
         value_name: URL
-        help: The listener URL
+        help: The listener URL (http://127.0.0.1:8080)
         takes_value: true
     - redis-hostname:
         long: redis-hostname
@@ -28,6 +21,11 @@ args:
         long: redis-password
         value_name: password
         help: The redis password
+        takes_value: true
+    - cache-type:
+        long: cache-type
+        value_name: type
+        help: The cache type (redis, memory)
         takes_value: true
     - verbose:
         short: v
