@@ -19,6 +19,16 @@ args:
         value_name: URL
         help: The listener URL
         takes_value: true
+    - redis-hostname:
+        long: redis-hostname
+        value_name: hostname[:port]
+        help: The redis hostname
+        takes_value: true
+    - redis-password:
+        long: redis-password
+        value_name: password
+        help: The redis password
+        takes_value: true
     - verbose:
         short: v
         multiple: true

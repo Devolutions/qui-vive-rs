@@ -43,14 +43,23 @@ header! { (QuiViveIdParam, "QuiVive-IdParam") => [String] }
 header! { (QuiViveSrcParam, "QuiVive-SrcParam") => [String] }
 
 #[derive(Cacheable, Clone, Debug)]
+#[cache(expires="86400")] // 24 hours
 struct QuiViveEntry {
     id: String,
     val: String,
     url: String,
 }
 
+#[derive(Clone)]
+struct QuiViveConfig {
+    external_url: String,
+    listener_url: String,
+    redis_hostname: Option<String>,
+    redis_password: Option<String>,
+}
+
 struct QuiVive {
-    pub url_prefix: String,
+    pub cfg: QuiViveConfig,
     pub cache: Arc<Mutex<mouscache::Cache>>,
 }
 
@@ -91,7 +100,7 @@ impl Service for QuiVive {
             (Post, ref x) if RE_KEY.is_match(x) => {
                 let id = gen_id().unwrap();
                 let cache = self.cache.clone();
-                let url_prefix = self.url_prefix.clone();
+                let external_url = self.cfg.external_url.clone();
 
                 Box::new(request.body().concat2().map(move|body| {
                     let mut value = String::from_utf8(body.to_vec()).unwrap();
@@ -101,7 +110,7 @@ impl Service for QuiVive {
                     }
 
                     let entry = QuiViveEntry { id: id.clone(), val: value, url: "".to_string() };
-                    let result = format!("{}/key/{}\n", url_prefix, id);
+                    let result = format!("{}/key/{}\n", external_url, id);
 
                     let mut cache_guard = cache.lock().unwrap();
                     if let Ok(_) = cache_guard.insert(id.clone(), entry.clone()) {
@@ -133,7 +142,7 @@ impl Service for QuiVive {
             (Post, ref x) if RE_URL.is_match(x) => {
                 let id = gen_id().unwrap();
                 let cache = self.cache.clone();
-                let url_prefix = self.url_prefix.clone();
+                let external_url = self.cfg.external_url.clone();
 
                 Box::new(request.body().concat2().map(move|body| {
                     let mut value = String::from_utf8(body.to_vec()).unwrap();
@@ -145,7 +154,7 @@ impl Service for QuiVive {
                     let url = value.clone();
 
                     let entry = QuiViveEntry { id: id.clone(), val: "".to_string(), url: url };
-                    let result = format!("{}/{}\n", url_prefix, id);
+                    let result = format!("{}/{}\n", external_url, id);
 
                     let mut cache_guard = cache.lock().unwrap();
                     if let Ok(_) = cache_guard.insert(id.clone(), entry.clone()) {
@@ -176,7 +185,7 @@ impl Service for QuiVive {
             (Post, ref x) if RE_INV.is_match(x) => {
                 let id = gen_id().unwrap();
                 let cache = self.cache.clone();
-                let url_prefix = self.url_prefix.clone();
+                let external_url = self.cfg.external_url.clone();
 
                 if !request.headers().has::<QuiViveDstUrl>() {
                     Box::new(futures::future::ok(Response::new()
@@ -191,7 +200,7 @@ impl Service for QuiVive {
                     }
 
                     if let Some(src_param) = request.headers().get::<QuiViveSrcParam>() {
-                        let src_url = url_prefix.clone();
+                        let src_url = external_url.clone();
                         url.query_pairs_mut().append_pair(src_param.to_string().as_ref(), src_url.as_ref());
                     }
 
@@ -203,7 +212,7 @@ impl Service for QuiVive {
                         }
 
                         let entry = QuiViveEntry { id: id.clone(), val: value, url: url.to_string() };
-                        let result = format!("{}/{}\n", url_prefix, id);
+                        let result = format!("{}/{}\n", external_url, id);
 
                         let mut cache_guard = cache.lock().unwrap();
                         if let Ok(_) = cache_guard.insert(id.clone(), entry.clone()) {
@@ -267,25 +276,47 @@ fn main() {
     env_logger::init();
 
     let yaml = load_yaml!("cli.yml");
-    let matches = App::from_yaml(yaml).get_matches();
+    let app = App::from_yaml(yaml);
+    let matches = app.get_matches();
 
-    let address = "127.0.0.1:8080".parse().unwrap();
-    let external_url = matches.value_of("external-url").unwrap_or("127.0.0.1:8080");
     let listener_url = matches.value_of("listener-url").unwrap_or("127.0.0.1:8080");
+    let external_url = matches.value_of("external-url").unwrap_or(listener_url.as_ref());
+    let address = listener_url.parse().unwrap();
 
-    println!("external-url: {}", external_url);
-    println!("listener-url: {}", listener_url);
+    let redis_hostname = if let Some(value) = matches.value_of("redis-hostname") {
+        Some(String::from(value))
+    } else {
+        None
+    };
 
-    let new_service = || {
-        let cache = match RedisCache::new("localhost", None) {
+    let redis_password = if let Some(value) = matches.value_of("redis-password") {
+        Some(String::from(value))
+    } else {
+        None
+    };
+
+    let cfg = QuiViveConfig {
+        external_url: external_url.to_string(),
+        listener_url: listener_url.to_string(),
+        redis_hostname: redis_hostname,
+        redis_password: redis_password,
+    };
+
+    let new_service = move || {
+
+        let redis_hostname = cfg.redis_hostname.as_ref().map_or("", |x| { x.as_str() });
+
+        let cache = match RedisCache::new(redis_hostname, None) {
             Ok(cache) => cache,
             Err(_) => MemoryCache::new()
         };
+
         Ok(QuiVive {
-            url_prefix: "127.0.0.1:8080".to_string(),
+            cfg: cfg.clone(),
             cache: Arc::new(Mutex::new(cache))
         })
     };
+
     let server = hyper::server::Http::new()
         .bind(&address, new_service)
         .unwrap();
