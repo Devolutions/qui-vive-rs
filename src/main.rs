@@ -29,8 +29,6 @@ use hyper::server::{Request, Response, Service};
 use futures::Future;
 use futures::stream::{Stream};
 
-use mouscache::{MemoryCache, RedisCache};
-
 use rand::{thread_rng, Rng};
 use regex::Regex;
 use url::{Url};
@@ -102,7 +100,7 @@ impl Service for QuiViveService {
                 let input = format!("{}", get_timestamp());
 
                 let entry = QuiViveEntry { id: id.clone(), val: input.clone(), url: "".to_string() };
-                let mut cache = self.cache.clone();
+                let cache = self.cache.clone();
 
                 if let Ok(_) = cache.insert(id.clone(), entry.clone()) {
                     match cache.get::<String, QuiViveEntry>(id.clone()) {
@@ -122,7 +120,7 @@ impl Service for QuiViveService {
             }
             (Post, ref x) if RE_KEY.is_match(x) => {
                 let id = self.gen_id().unwrap();
-                let mut cache = self.cache.clone();
+                let cache = self.cache.clone();
                 let external_url = self.cfg.external_url.clone();
 
                 Box::new(request.body().concat2().map(move|body| {
@@ -146,7 +144,7 @@ impl Service for QuiViveService {
                 let cap = RE_KEY_ID.captures(x).unwrap();
                 let id = cap[1].to_string();
 
-                let mut cache = self.cache.clone();
+                let cache = self.cache.clone();
 
                 match cache.get::<String, QuiViveEntry>(id.clone()) {
                     Ok(Some(entry)) => {
@@ -164,7 +162,7 @@ impl Service for QuiViveService {
             }
             (Post, ref x) if RE_URL.is_match(x) => {
                 let id = self.gen_id().unwrap();
-                let mut cache = self.cache.clone();
+                let cache = self.cache.clone();
                 let external_url = self.cfg.external_url.clone();
 
                 Box::new(request.body().concat2().map(move|body| {
@@ -190,7 +188,7 @@ impl Service for QuiViveService {
                 let cap = RE_URL_ID.captures(x).unwrap();
                 let id = cap[1].to_string();
 
-                let mut cache = self.cache.clone();
+                let cache = self.cache.clone();
 
                 match cache.get::<String, QuiViveEntry>(id.clone()) {
                     Ok(Some(entry)) => {
@@ -207,7 +205,7 @@ impl Service for QuiViveService {
             }
             (Post, ref x) if RE_INV.is_match(x) => {
                 let id = self.gen_id().unwrap();
-                let mut cache = self.cache.clone();
+                let cache = self.cache.clone();
                 let external_url = self.cfg.external_url.clone();
 
                 if !request.headers().has::<QuiViveDstUrl>() {
@@ -244,7 +242,7 @@ impl Service for QuiViveService {
                 let cap = RE_INV_ID.captures(x).unwrap();
                 let id = cap[1].to_string();
 
-                let mut cache = self.cache.clone();
+                let cache = self.cache.clone();
 
                 match cache.get::<String, QuiViveEntry>(id.clone()) {
                     Ok(Some(entry)) => {
@@ -263,7 +261,7 @@ impl Service for QuiViveService {
                 let cap = RE_ID.captures(x).unwrap();
                 let id = cap[1].to_string();
 
-                let mut cache = self.cache.clone();
+                let cache = self.cache.clone();
 
                 match cache.get::<String, QuiViveEntry>(id.clone()) {
                     Ok(Some(ref entry)) if !entry.url.is_empty() => {
@@ -301,9 +299,9 @@ fn main() {
         let redis_hostname = cfg.redis_hostname.as_ref().map_or("localhost", |x| { x.as_str() });
         let redis_password = cfg.redis_password.as_ref().map(String::as_str);
 
-        let cache = match RedisCache::new(redis_hostname, redis_password) {
+        let cache = match mouscache::redis(redis_hostname, redis_password) {
             Ok(cache) => cache,
-            Err(_) => MemoryCache::new()
+            Err(_) => mouscache::memory()
         };
 
         Ok(QuiViveService {

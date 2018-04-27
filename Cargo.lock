@@ -331,7 +331,7 @@ dependencies = [
 
 [[package]]
 name = "mouscache"
-version = "0.3.6"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "dns-lookup 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -342,7 +342,7 @@ dependencies = [
 
 [[package]]
 name = "mouscache_derive"
-version = "0.3.3"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "proc-macro2 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -396,8 +396,8 @@ dependencies = [
  "hyper 0.11.25 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "mouscache 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "mouscache_derive 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mouscache 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mouscache_derive 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.39 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -927,8 +927,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum mime 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)" = "e2e00e17be181010a91dbfefb01660b17311059dc8c7f48b9017677721e732bd"
 "checksum mio 0.6.14 (registry+https://github.com/rust-lang/crates.io-index)" = "6d771e3ef92d58a8da8df7d6976bfca9371ed1de6619d9d5a5ce5b1f29b85bfe"
 "checksum miow 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "8c1f2f3b1cf331de6896aabf6e9d55dca90356cc9960cca7eaaf408a355ae919"
-"checksum mouscache 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "101469faba076096a1fcd996b637a2b8c4e91d73265d20b00de6421a2fabbba7"
-"checksum mouscache_derive 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "53c579db40ee508535f1635b00396a18f6d59904a919de103bc0b537d7d088fb"
+"checksum mouscache 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "35d3974de95a923859d56765db3b5f27cce2c40ba9bc70401421bc7fdaf5df7a"
+"checksum mouscache_derive 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "77d7738edacff71cc5cb87730a0a8a2a573a57768f69b5a3f8ab9bedf47f3bd2"
 "checksum net2 0.2.32 (registry+https://github.com/rust-lang/crates.io-index)" = "9044faf1413a1057267be51b5afba8eb1090bd2231c693664aa1db716fe1eae0"
 "checksum nodrop 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)" = "9a2228dca57108069a5262f2ed8bd2e82496d2e074a06d1ccc7ce1687b6ae0a2"
 "checksum num_cpus 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c51a3322e4bca9d212ad9a158a02abc6934d005490c054a2778df73a70aa0a30"
