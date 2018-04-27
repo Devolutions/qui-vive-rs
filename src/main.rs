@@ -5,6 +5,7 @@ extern crate futures;
 extern crate regex;
 extern crate rand;
 extern crate url;
+extern crate time;
 
 #[macro_use]
 extern crate clap;
@@ -34,7 +35,6 @@ use rand::{thread_rng, Rng};
 use regex::Regex;
 use url::{Url};
 
-use std::sync::{Arc, Mutex};
 use std::net::{SocketAddr};
 
 mod config;
@@ -51,9 +51,14 @@ struct QuiViveEntry {
     url: String,
 }
 
+pub fn get_timestamp() -> u32 {
+    let timespec = time::get_time();
+    timespec.sec as u32
+}
+
 struct QuiViveService {
     pub cfg: QuiViveConfig,
-    pub cache: Arc<Mutex<mouscache::Cache>>,
+    pub cache: mouscache::Cache,
 }
 
 impl QuiViveService {
@@ -92,25 +97,41 @@ impl Service for QuiViveService {
         let path = request.path().clone().to_owned();
 
         match (method, path.as_str()) {
+            (Get, "/health") => {
+                let id = "health".to_string();
+                let input = format!("{}", get_timestamp());
+
+                let entry = QuiViveEntry { id: id.clone(), val: input.clone(), url: "".to_string() };
+                let mut cache = self.cache.clone();
+
+                if let Ok(_) = cache.insert(id.clone(), entry.clone()) {
+                    match cache.get::<String, QuiViveEntry>(id.clone()) {
+                        Ok(Some(ref entry)) if entry.val.eq(&input) => {
+                            Box::new(futures::future::ok(Response::new()
+                                .with_status(StatusCode::Ok)))
+                        }
+                        _ => {
+                            Box::new(futures::future::ok(Response::new()
+                                .with_status(StatusCode::ServiceUnavailable)))
+                        }
+                    }
+                } else {
+                    Box::new(futures::future::ok(Response::new()
+                        .with_status(StatusCode::InternalServerError)))
+                }
+            }
             (Post, ref x) if RE_KEY.is_match(x) => {
                 let id = self.gen_id().unwrap();
-                let cache = self.cache.clone();
+                let mut cache = self.cache.clone();
                 let external_url = self.cfg.external_url.clone();
 
                 Box::new(request.body().concat2().map(move|body| {
-                    let mut value = String::from_utf8(body.to_vec()).unwrap();
-
-                    if !value.ends_with('\n') {
-                        value.push('\n');
-                    }
-
-                    debug!("key: {} value: {}", id, value);
+                    let value = String::from_utf8(body.to_vec()).unwrap();
 
                     let entry = QuiViveEntry { id: id.clone(), val: value, url: "".to_string() };
-                    let result = format!("{}/key/{}\n", external_url, id);
+                    let result = format!("{}/key/{}\n", external_url, id.clone());
 
-                    let mut cache_guard = cache.lock().unwrap();
-                    if let Ok(_) = cache_guard.insert(id.clone(), entry.clone()) {
+                    if let Ok(_) = cache.insert(id.clone(), entry.clone()) {
                         Response::new()
                             .with_status(StatusCode::Ok)
                             .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
@@ -125,36 +146,36 @@ impl Service for QuiViveService {
                 let cap = RE_KEY_ID.captures(x).unwrap();
                 let id = cap[1].to_string();
 
-                if let Some(entry) = self.cache.lock().unwrap().get::<String, QuiViveEntry>(id.clone()) {
-                    Box::new(futures::future::ok(Response::new()
-                        .with_status(StatusCode::Ok)
-                        .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
-                        .with_body(entry.val)
-                    ))
-                } else {
-                    Box::new(futures::future::ok(Response::new()
-                        .with_status(StatusCode::NotFound)))
+                let mut cache = self.cache.clone();
+
+                match cache.get::<String, QuiViveEntry>(id.clone()) {
+                    Ok(Some(entry)) => {
+                        Box::new(futures::future::ok(Response::new()
+                            .with_status(StatusCode::Ok)
+                            .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
+                            .with_body(entry.val)
+                        ))
+                    }
+                    _ => {
+                        Box::new(futures::future::ok(Response::new()
+                            .with_status(StatusCode::NotFound)))
+                    }
                 }
             }
             (Post, ref x) if RE_URL.is_match(x) => {
                 let id = self.gen_id().unwrap();
-                let cache = self.cache.clone();
+                let mut cache = self.cache.clone();
                 let external_url = self.cfg.external_url.clone();
 
                 Box::new(request.body().concat2().map(move|body| {
-                    let mut value = String::from_utf8(body.to_vec()).unwrap();
-
-                    if !value.ends_with('\n') {
-                        value.push('\n');
-                    }
+                    let value = String::from_utf8(body.to_vec()).unwrap();
 
                     let url = value.clone();
 
                     let entry = QuiViveEntry { id: id.clone(), val: "".to_string(), url: url };
                     let result = format!("{}/{}\n", external_url, id);
 
-                    let mut cache_guard = cache.lock().unwrap();
-                    if let Ok(_) = cache_guard.insert(id.clone(), entry.clone()) {
+                    if let Ok(_) = cache.insert(id.clone(), entry.clone()) {
                         Response::new()
                             .with_status(StatusCode::Ok)
                             .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
@@ -169,19 +190,24 @@ impl Service for QuiViveService {
                 let cap = RE_URL_ID.captures(x).unwrap();
                 let id = cap[1].to_string();
 
-                if let Some(entry) = self.cache.lock().unwrap().get::<String, QuiViveEntry>(id.clone()) {
-                    Box::new(futures::future::ok(Response::new()
-                        .with_status(StatusCode::MovedPermanently)
-                        .with_header(Location::new(entry.url))
-                    ))
-                } else {
-                    Box::new(futures::future::ok(Response::new()
-                        .with_status(StatusCode::NotFound)))
+                let mut cache = self.cache.clone();
+
+                match cache.get::<String, QuiViveEntry>(id.clone()) {
+                    Ok(Some(entry)) => {
+                        Box::new(futures::future::ok(Response::new()
+                            .with_status(StatusCode::MovedPermanently)
+                            .with_header(Location::new(entry.url))
+                        ))
+                    }
+                    _ => {
+                        Box::new(futures::future::ok(Response::new()
+                            .with_status(StatusCode::NotFound)))
+                    }
                 }
             }
             (Post, ref x) if RE_INV.is_match(x) => {
                 let id = self.gen_id().unwrap();
-                let cache = self.cache.clone();
+                let mut cache = self.cache.clone();
                 let external_url = self.cfg.external_url.clone();
 
                 if !request.headers().has::<QuiViveDstUrl>() {
@@ -197,17 +223,12 @@ impl Service for QuiViveService {
                     }
 
                     Box::new(request.body().concat2().map(move |body| {
-                        let mut value = String::from_utf8(body.to_vec()).unwrap();
-
-                        if !value.ends_with('\n') {
-                            value.push('\n');
-                        }
+                        let value = String::from_utf8(body.to_vec()).unwrap();
 
                         let entry = QuiViveEntry { id: id.clone(), val: value, url: url.to_string() };
                         let result = format!("{}/{}\n", external_url, id);
 
-                        let mut cache_guard = cache.lock().unwrap();
-                        if let Ok(_) = cache_guard.insert(id.clone(), entry.clone()) {
+                        if let Ok(_) = cache.insert(id.clone(), entry.clone()) {
                             Response::new()
                                 .with_status(StatusCode::Ok)
                                 .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
@@ -223,38 +244,39 @@ impl Service for QuiViveService {
                 let cap = RE_INV_ID.captures(x).unwrap();
                 let id = cap[1].to_string();
 
-                if let Some(entry) = self.cache.lock().unwrap().get::<String, QuiViveEntry>(id.clone()) {
-                    Box::new(futures::future::ok(Response::new()
-                        .with_status(StatusCode::MovedPermanently)
-                        .with_header(Location::new(entry.url))
-                    ))
-                } else {
-                    Box::new(futures::future::ok(Response::new()
-                        .with_status(StatusCode::NotFound)))
+                let mut cache = self.cache.clone();
+
+                match cache.get::<String, QuiViveEntry>(id.clone()) {
+                    Ok(Some(entry)) => {
+                        Box::new(futures::future::ok(Response::new()
+                            .with_status(StatusCode::MovedPermanently)
+                            .with_header(Location::new(entry.url))
+                        ))
+                    }
+                    _ => {
+                        Box::new(futures::future::ok(Response::new()
+                            .with_status(StatusCode::NotFound)))
+                    }
                 }
             }
             (Get, ref x) if RE_ID.is_match(x) => {
                 let cap = RE_ID.captures(x).unwrap();
                 let id = cap[1].to_string();
 
-                if let Some(entry) = self.cache.lock().unwrap().get::<String, QuiViveEntry>(id.clone()) {
-                    if !entry.url.is_empty() {
+                let mut cache = self.cache.clone();
+
+                match cache.get::<String, QuiViveEntry>(id.clone()) {
+                    Ok(Some(ref entry)) if !entry.url.is_empty() => {
                         Box::new(futures::future::ok(Response::new()
                             .with_status(StatusCode::MovedPermanently)
-                            .with_header(Location::new(entry.url))
+                            .with_header(Location::new(entry.url.clone()))
                         ))
-                    } else {
+                    }
+                    _ => {
                         Box::new(futures::future::ok(Response::new()
                             .with_status(StatusCode::NotFound)))
                     }
-                } else {
-                    Box::new(futures::future::ok(Response::new()
-                        .with_status(StatusCode::NotFound)))
                 }
-            }
-            (Get, "/health") => {
-                Box::new(futures::future::ok(Response::new()
-                    .with_status(StatusCode::Ok)))
             }
             _ => {
                 Box::new(futures::future::ok(Response::new()
@@ -286,7 +308,7 @@ fn main() {
 
         Ok(QuiViveService {
             cfg: cfg.clone(),
-            cache: Arc::new(Mutex::new(cache))
+            cache: cache
         })
     };
 

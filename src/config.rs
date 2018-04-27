@@ -28,7 +28,7 @@ impl QuiViveConfig {
         let app = App::from_yaml(yaml);
         let matches = app.version(crate_version!()).get_matches();
 
-        self.listener_url = matches.value_of("listener-url").unwrap_or("127.0.0.1:8080").to_string();
+        self.listener_url = matches.value_of("listener-url").unwrap_or("http://127.0.0.1:8080").to_string();
         self.external_url = matches.value_of("external-url").unwrap_or(self.listener_url.as_ref()).to_string();
 
         let redis_hostname = if let Some(value) = matches.value_of("redis-hostname") {
