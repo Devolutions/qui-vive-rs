@@ -10,7 +10,7 @@ args:
     - listener-url:
         long: listener-url
         value_name: URL
-        help: The listener URL (http://127.0.0.1:8080)
+        help: The listener URL (http://0.0.0.0:8080)
         takes_value: true
     - redis-hostname:
         long: redis-hostname
