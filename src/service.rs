@@ -89,7 +89,7 @@ impl Service for QuiViveService {
                         }
                         _ => {
                             Box::new(futures::future::ok(Response::new()
-                                .with_status(StatusCode::ServiceUnavailable)))
+                                .with_status(StatusCode::InternalServerError)))
                         }
                     }
                 } else {
@@ -103,19 +103,22 @@ impl Service for QuiViveService {
                 let external_url = self.cfg.external_url.clone();
 
                 Box::new(request.body().concat2().map(move|body| {
-                    let value = String::from_utf8(body.to_vec()).unwrap();
+                    if let Ok(value) = String::from_utf8(body.to_vec()) {
+                        let entry = QuiViveEntry { id: id.clone(), val: value, url: "".to_string() };
+                        let result = format!("{}/key/{}\n", external_url, id.clone());
 
-                    let entry = QuiViveEntry { id: id.clone(), val: value, url: "".to_string() };
-                    let result = format!("{}/key/{}\n", external_url, id.clone());
-
-                    if let Ok(_) = cache.insert(id.clone(), entry.clone()) {
-                        Response::new()
-                            .with_status(StatusCode::Ok)
-                            .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
-                            .with_body(result)
+                        if let Ok(_) = cache.insert(id.clone(), entry.clone()) {
+                            Response::new()
+                                .with_status(StatusCode::Ok)
+                                .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
+                                .with_body(result)
+                        } else {
+                            Response::new()
+                                .with_status(StatusCode::InternalServerError)
+                        }
                     } else {
                         Response::new()
-                            .with_status(StatusCode::NotFound)
+                            .with_status(StatusCode::BadRequest)
                     }
                 }))
             }
@@ -145,21 +148,24 @@ impl Service for QuiViveService {
                 let external_url = self.cfg.external_url.clone();
 
                 Box::new(request.body().concat2().map(move|body| {
-                    let value = String::from_utf8(body.to_vec()).unwrap();
+                    if let Ok(value) = String::from_utf8(body.to_vec()) {
+                        let url = value.clone();
 
-                    let url = value.clone();
+                        let entry = QuiViveEntry { id: id.clone(), val: "".to_string(), url: url };
+                        let result = format!("{}/{}\n", external_url, id);
 
-                    let entry = QuiViveEntry { id: id.clone(), val: "".to_string(), url: url };
-                    let result = format!("{}/{}\n", external_url, id);
-
-                    if let Ok(_) = cache.insert(id.clone(), entry.clone()) {
-                        Response::new()
-                            .with_status(StatusCode::Ok)
-                            .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
-                            .with_body(result)
+                        if let Ok(_) = cache.insert(id.clone(), entry.clone()) {
+                            Response::new()
+                                .with_status(StatusCode::Ok)
+                                .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
+                                .with_body(result)
+                        } else {
+                            Response::new()
+                                .with_status(StatusCode::InternalServerError)
+                        }
                     } else {
                         Response::new()
-                            .with_status(StatusCode::NotFound)
+                            .with_status(StatusCode::BadRequest)
                     }
                 }))
             }
@@ -200,19 +206,22 @@ impl Service for QuiViveService {
                     }
 
                     Box::new(request.body().concat2().map(move |body| {
-                        let value = String::from_utf8(body.to_vec()).unwrap();
+                        if let Ok(value) = String::from_utf8(body.to_vec()) {
+                            let entry = QuiViveEntry { id: id.clone(), val: value, url: url.to_string() };
+                            let result = format!("{}/{}\n", external_url, id);
 
-                        let entry = QuiViveEntry { id: id.clone(), val: value, url: url.to_string() };
-                        let result = format!("{}/{}\n", external_url, id);
-
-                        if let Ok(_) = cache.insert(id.clone(), entry.clone()) {
-                            Response::new()
-                                .with_status(StatusCode::Ok)
-                                .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
-                                .with_body(result)
+                            if let Ok(_) = cache.insert(id.clone(), entry.clone()) {
+                                Response::new()
+                                    .with_status(StatusCode::Ok)
+                                    .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
+                                    .with_body(result)
+                            } else {
+                                Response::new()
+                                    .with_status(StatusCode::InternalServerError)
+                            }
                         } else {
                             Response::new()
-                                .with_status(StatusCode::NotFound)
+                                .with_status(StatusCode::BadRequest)
                         }
                     }))
                 }

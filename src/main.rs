@@ -32,6 +32,7 @@ use service::QuiViveService;
 
 fn new_cache(ref cfg: &config::QuiViveConfig) -> std::result::Result<mouscache::Cache, mouscache::CacheError> {
     let cache_type = cfg.cache_type.as_ref().map_or("memory", |x| { x.as_str() });
+    info!("creating {} cache", cache_type);
     match cache_type.as_ref() {
         "redis" => {
             let redis_hostname = cfg.redis_hostname.as_ref().map_or("localhost", |x| { x.as_str() });
@@ -54,14 +55,14 @@ fn main() {
     cfg.load_cli();
     cfg.load_env();
 
+    let cache = new_cache(&cfg).unwrap();
     let url: Uri = cfg.listener_url.parse().unwrap();
     let address: SocketAddr = url.authority().unwrap().parse().unwrap();
 
     let new_service = move || {
-        let cache = new_cache(&cfg).unwrap();
         Ok(QuiViveService {
             cfg: cfg.clone(),
-            cache: cache,
+            cache: cache.clone(),
         })
     };
 
