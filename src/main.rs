@@ -43,6 +43,7 @@ header! { (QuiViveIdParam, "QuiVive-IdParam") => [String] }
 
 #[derive(Cacheable, Clone, Debug)]
 #[cache(expires="86400")] // 24 hours
+#[cache(rename="QuiVive")] // use 'QuiVive' prefix
 struct QuiViveEntry {
     id: String,
     val: String,
@@ -61,14 +62,11 @@ struct QuiViveService {
 
 impl QuiViveService {
     fn gen_id(&self) -> Option<String> {
-        const CHARSET: &[u8] = b"23456789\
-            abcdefghjkimnpqrstuvwxyz\
-            ABCDEFGHJKLMNPQRSTUVWXYZ";
-
         let mut rng = thread_rng();
-        let id: Option<String> = (0..9)
-            .map(|_| Some(*rng.choose(CHARSET)? as char))
-            .collect();
+        let id_length = self.cfg.id_length;
+        let id_charset = &self.cfg.id_charset.as_ref();
+        let id: Option<String> = (0..id_length).map(|_|
+            Some(*rng.choose(id_charset)? as char)).collect();
         id
     }
 }
@@ -284,6 +282,23 @@ impl Service for QuiViveService {
     }
 }
 
+fn new_cache(ref cfg: &config::QuiViveConfig) -> std::result::Result<mouscache::Cache, mouscache::CacheError> {
+    let cache_type = cfg.cache_type.as_ref().map_or("memory", |x| { x.as_str() });
+    match cache_type.as_ref() {
+        "redis" => {
+            let redis_hostname = cfg.redis_hostname.as_ref().map_or("localhost", |x| { x.as_str() });
+            let redis_password = cfg.redis_password.as_ref().map(String::as_str);
+            mouscache::redis(redis_hostname, redis_password)
+        }
+        "memory" => {
+            Ok(mouscache::memory())
+        }
+        _ => {
+            Err(mouscache::CacheError::Other("invalid cache type".to_string()))
+        }
+    }
+}
+
 fn main() {
     env_logger::init();
 
@@ -295,18 +310,10 @@ fn main() {
     let address: SocketAddr = url.authority().unwrap().parse().unwrap();
 
     let new_service = move || {
-
-        let redis_hostname = cfg.redis_hostname.as_ref().map_or("localhost", |x| { x.as_str() });
-        let redis_password = cfg.redis_password.as_ref().map(String::as_str);
-
-        let cache = match mouscache::redis(redis_hostname, redis_password) {
-            Ok(cache) => cache,
-            Err(_) => mouscache::memory()
-        };
-
+        let cache = new_cache(&cfg).unwrap();
         Ok(QuiViveService {
             cfg: cfg.clone(),
-            cache: cache
+            cache: cache,
         })
     };
 

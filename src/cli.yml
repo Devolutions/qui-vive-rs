@@ -27,6 +27,16 @@ args:
         value_name: type
         help: The cache type (redis, memory)
         takes_value: true
+    - id-length:
+        long: id-length
+        value_name: length
+        help: The generated id length
+        takes_value: true
+    - id-charset:
+        long: id-charset
+        value_name: charset
+        help: The generated id character set
+        takes_value: true
     - verbose:
         short: v
         multiple: true
