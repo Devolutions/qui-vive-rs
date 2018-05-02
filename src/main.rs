@@ -37,7 +37,7 @@ fn new_cache(ref cfg: &config::QuiViveConfig) -> std::result::Result<mouscache::
         "redis" => {
             let redis_hostname = cfg.redis_hostname.as_ref().map_or("localhost", |x| { x.as_str() });
             let redis_password = cfg.redis_password.as_ref().map(String::as_str);
-            mouscache::redis(redis_hostname, redis_password)
+            mouscache::redis(redis_hostname, redis_password, None)
         }
         "memory" => {
             Ok(mouscache::memory())
