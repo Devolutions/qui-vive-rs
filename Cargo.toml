@@ -2,7 +2,7 @@
 name = "qui-vive"
 version = "0.1.0"
 readme = "README.md"
-license = "Apache-2.0"
+license = "MIT/Apache-2.0"
 homepage = "https://github.com/wayk/qui-vive-rs"
 repository = "https://github.com/wayk/qui-vive-rs"
 keywords = ["key value", "url shortener"]
