@@ -22,3 +22,4 @@ time = "0.1"
 mouscache = "0.4"
 mouscache_derive = "0.4"
 clap = { version = "2.31", features = ["yaml"] }
+ctrlc = { version = "3.0", features = ["termination"] }
