@@ -6,7 +6,6 @@ extern crate regex;
 extern crate rand;
 extern crate url;
 extern crate time;
-extern crate ctrlc;
 
 #[macro_use]
 extern crate clap;
@@ -21,12 +20,6 @@ extern crate env_logger;
 
 #[macro_use]
 extern crate lazy_static;
-
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-
-use futures::Future;
-use futures::Async;
 
 use hyper::{Uri};
 use std::net::{SocketAddr};
@@ -55,31 +48,6 @@ fn new_cache(ref cfg: &config::QuiViveConfig) -> std::result::Result<mouscache::
     }
 }
 
-struct ShutdownSignal {
-    pub event: Arc<AtomicBool>,
-}
-
-impl ShutdownSignal {
-    pub fn new() -> Self {
-        ShutdownSignal {
-            event: Arc::new(AtomicBool::new(false))
-        }
-    }
-}
-
-impl Future for ShutdownSignal {
-    type Item = ();
-    type Error = ();
-
-    fn poll(&mut self) -> Result<Async<<Self as Future>::Item>, <Self as Future>::Error> {
-        if self.event.load(Ordering::SeqCst) {
-            Ok(Async::Ready(()))
-        } else {
-            Ok(Async::NotReady)
-        }
-    }
-}
-
 fn main() {
     env_logger::init();
 
@@ -102,13 +70,6 @@ fn main() {
         .bind(&address, new_service)
         .unwrap();
 
-    let shutdown_signal = ShutdownSignal::new();
-    let handler_signal = shutdown_signal.event.clone();
-
-    ctrlc::set_handler(move || {
-        handler_signal.store(true, Ordering::SeqCst);
-    }).unwrap();
-
     info!("running qui-vive at {}", address);
-    server.run_until(shutdown_signal).unwrap();
+    server.run().unwrap();
 }
