@@ -21,12 +21,6 @@ extern crate env_logger;
 #[macro_use]
 extern crate lazy_static;
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-
-use futures::Future;
-use futures::Async;
-
 use hyper::{Uri};
 use std::net::{SocketAddr};
 
