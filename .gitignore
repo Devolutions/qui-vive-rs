@@ -1,2 +1,9 @@
+# IDE files
 .idea/
+.vscode/
+
+# OS specific files
+.DS_STORE
+
+# Build directories
 /target
