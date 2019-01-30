@@ -59,13 +59,13 @@ Alternatively, the key id can be specified at creation time, instead of using th
 ```
 $ curl -X POST http://127.0.0.1:8080/key/f16a75c1-9804-4e10-85c0-b6a159837c0d \
 > -d 'this is my sample data'
-http://127.0.0.1:8080/f16a75c1-9804-4e10-85c0-b6a159837c0d
+http://127.0.0.1:8080/key/f16a75c1-9804-4e10-85c0-b6a159837c0d
 ```
 
 You can then fetch the value again using the custom key id:
 
 ```
-$ curl http://127.0.0.1:8080/f16a75c1-9804-4e10-85c0-b6a159837c0d
+$ curl http://127.0.0.1:8080/key/f16a75c1-9804-4e10-85c0-b6a159837c0d
 this is my sample data
 ```
 
