@@ -17,6 +17,7 @@ FLAGS:
 
 OPTIONS:
         --cache-type <type>                   The cache type (redis, memory)
+        --default-expiration <expiration>     The default key expiration, in seconds
         --external-url <URL>                  The external URL (https://qui-vive.link)
         --id-charset <charset>                The generated id character set
         --id-length <length>                  The generated id length
@@ -53,12 +54,28 @@ this is my sample data
 
 The value can also be fetched directly from a browser with the same URL.
 
+Alternatively, the key id can be specified at creation time, instead of using the generated id:
+
+```
+$ curl -X POST http://127.0.0.1:8080/key/f16a75c1-9804-4e10-85c0-b6a159837c0d \
+> -d 'this is my sample data'
+http://127.0.0.1:8080/f16a75c1-9804-4e10-85c0-b6a159837c0d
+```
+
+You can then fetch the value again using the custom key id:
+
+```
+$ curl http://127.0.0.1:8080/f16a75c1-9804-4e10-85c0-b6a159837c0d
+this is my sample data
+```
+
 ### URL shortener
 
 Create a short URL that will redirect to a longer one with a POST request on /url with the destination in the HTTP request body. The short URL that can be used to redirect to the long URL is returned in the HTTP response body.
 
 ```
-curl -X POST http://127.0.0.1:8080/url -d "https://github.com/wayk/qui-vive-rs/"
+curl -X POST http://127.0.0.1:8080/url \
+> -d "https://github.com/devolutions/qui-vive-rs/"
 http://127.0.0.1:8080/TwfdpHQJC
 ```
 
@@ -66,7 +83,7 @@ If you use the short URL in a browser, it should properly redirect to the long U
 
 ```
 $ curl -w "%{redirect_url}" http://127.0.0.1:8080/stgQBECEz
-https://github.com/wayk/qui-vive-rs/
+https://github.com/devolutions/qui-vive-rs/
 ```
 
 ### Invitation Link
@@ -95,3 +112,14 @@ $ curl http://127.0.0.1:8080/key/KT2HKxVRi
 ```
 
 The destination page should use the id=<qui-vive-id> query parameter in the URL to fetch the associated data and present the invitation information to the user.
+
+### Key Expiration
+
+All keys will expire by default after 24 hours (86400 seconds), unless the expiration is explicitly set to something else. A value of 0 means no expiration. To specify the desired expiration (in seconds) when creating a new key, use the "QuiVive-Expiration" HTTP header.
+
+```
+$ curl -X POST http://127.0.0.1:8080/key \
+> -H "QuiVive-Expiration: 86400" \
+> -d 'this is my sample data'
+http://127.0.0.1:8080/KT2HKxVRi
+```
