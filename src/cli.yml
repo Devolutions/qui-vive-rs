@@ -37,6 +37,11 @@ args:
         value_name: charset
         help: The generated id character set
         takes_value: true
+    - default-expiration:
+          long: default-expiration
+          value_name: expiration
+          help: The default key expiration, in seconds
+          takes_value: true
     - verbose:
         short: v
         multiple: true

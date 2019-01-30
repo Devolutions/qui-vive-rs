@@ -11,6 +11,7 @@ pub struct QuiViveConfig {
     pub cache_type: Option<String>,
     pub id_length: u32,
     pub id_charset: String,
+    pub default_expiration: Option<u32>,
 }
 
 const ID_LENGTH: u32 = 9;
@@ -30,6 +31,7 @@ impl QuiViveConfig {
             cache_type: None,
             id_length: ID_LENGTH,
             id_charset: ID_CHARSET.to_string(),
+            default_expiration: Some(86400), // 24 hours
         }
     }
 
@@ -66,6 +68,12 @@ impl QuiViveConfig {
 
         self.id_length = value_t!(matches, "id-length", u32).unwrap_or(9);
 
+        if let Some(default_expiration) = matches.value_of("default-expiration") {
+            if let Ok(default_expiration) = Some(default_expiration).unwrap().parse::<u32>() {
+                self.default_expiration = Some(default_expiration);
+            }
+        }
+
         if let Some(id_charset) = matches.value_of("id-charset") {
             self.id_charset = id_charset.to_string();
         }
@@ -100,6 +108,12 @@ impl QuiViveConfig {
 
         if let Ok(val) = env::var("ID_CHARSET") {
             self.id_charset = Some(val).unwrap();
+        }
+
+        if let Ok(val) = env::var("DEFAULT_EXPIRATION") {
+            if let Ok(default_expiration) = Some(val).unwrap().parse::<u32>() {
+                self.default_expiration = Some(default_expiration);
+            }
         }
     }
 }

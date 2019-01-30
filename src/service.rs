@@ -23,7 +23,6 @@ header! { (QuiViveDstUrl, "QuiVive-DstUrl") => [String] }
 header! { (QuiViveIdParam, "QuiVive-IdParam") => [String] }
 
 #[derive(Cacheable, Clone, Debug)]
-#[cache(expires="86400")] // 24 hours
 #[cache(rename="QuiVive")] // use 'QuiVive' prefix
 struct QuiViveEntry {
     id: String,
@@ -61,13 +60,13 @@ impl Service for QuiViveService {
     fn call(&self, request: Request) -> Self::Future {
 
         lazy_static! {
-            static ref RE_ID: Regex = Regex::new(r"^/(\w+)$").unwrap();
+            static ref RE_ID: Regex = Regex::new(r"^/([\w|-]+)$").unwrap();
             static ref RE_KEY: Regex = Regex::new(r"^/key$").unwrap();
-            static ref RE_KEY_ID: Regex = Regex::new(r"^/key/(\w+)$").unwrap();
+            static ref RE_KEY_ID: Regex = Regex::new(r"^/key/([\w|-]+)$").unwrap();
             static ref RE_URL: Regex = Regex::new(r"^/url$").unwrap();
-            static ref RE_URL_ID: Regex = Regex::new(r"^/url/(\w+)$").unwrap();
+            static ref RE_URL_ID: Regex = Regex::new(r"^/url/([\w|-]+)$").unwrap();
             static ref RE_INV: Regex = Regex::new(r"^/inv$").unwrap();
-            static ref RE_INV_ID: Regex = Regex::new(r"^/inv/(\w+)$").unwrap();
+            static ref RE_INV_ID: Regex = Regex::new(r"^/inv/([\w|-]+)$").unwrap();
         }
 
         let method = request.method().clone();
@@ -77,11 +76,12 @@ impl Service for QuiViveService {
             (Get, "/health") => {
                 let id = "health".to_string();
                 let input = format!("{}", get_timestamp());
+                let expiration = self.cfg.default_expiration.map(|x| x as usize);
 
                 let entry = QuiViveEntry { id: id.clone(), val: input.clone(), url: "".to_string() };
                 let cache = self.cache.clone();
 
-                if let Ok(_) = cache.insert(id.clone(), entry.clone()) {
+                if let Ok(_) = cache.insert_with(id.clone(), entry.clone(), expiration) {
                     match cache.get::<String, QuiViveEntry>(id.clone()) {
                         Ok(Some(ref entry)) if entry.val.eq(&input) => {
                             Box::new(futures::future::ok(Response::new()
@@ -101,13 +101,41 @@ impl Service for QuiViveService {
                 let id = self.gen_id().unwrap();
                 let cache = self.cache.clone();
                 let external_url = self.cfg.external_url.clone();
+                let expiration = self.cfg.default_expiration.map(|x| x as usize);
 
                 Box::new(request.body().concat2().map(move|body| {
                     if let Ok(value) = String::from_utf8(body.to_vec()) {
                         let entry = QuiViveEntry { id: id.clone(), val: value, url: "".to_string() };
                         let result = format!("{}/key/{}\n", external_url, id.clone());
 
-                        if let Ok(_) = cache.insert(id.clone(), entry.clone()) {
+                        if let Ok(_) = cache.insert_with(id.clone(), entry.clone(), expiration) {
+                            Response::new()
+                                .with_status(StatusCode::Ok)
+                                .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
+                                .with_body(result)
+                        } else {
+                            Response::new()
+                                .with_status(StatusCode::InternalServerError)
+                        }
+                    } else {
+                        Response::new()
+                            .with_status(StatusCode::BadRequest)
+                    }
+                }))
+            }
+            (Post, ref x) if RE_KEY_ID.is_match(x) => {
+                let cap = RE_KEY_ID.captures(x).unwrap();
+                let id = cap[1].to_string();
+                let cache = self.cache.clone();
+                let external_url = self.cfg.external_url.clone();
+                let expiration = self.cfg.default_expiration.map(|x| x as usize);
+
+                Box::new(request.body().concat2().map(move|body| {
+                    if let Ok(value) = String::from_utf8(body.to_vec()) {
+                        let entry = QuiViveEntry { id: id.clone(), val: value, url: "".to_string() };
+                        let result = format!("{}/key/{}\n", external_url, id.clone());
+
+                        if let Ok(_) = cache.insert_with(id.clone(), entry.clone(), expiration) {
                             Response::new()
                                 .with_status(StatusCode::Ok)
                                 .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
@@ -146,6 +174,7 @@ impl Service for QuiViveService {
                 let id = self.gen_id().unwrap();
                 let cache = self.cache.clone();
                 let external_url = self.cfg.external_url.clone();
+                let expiration = self.cfg.default_expiration.map(|x| x as usize);
 
                 Box::new(request.body().concat2().map(move|body| {
                     if let Ok(value) = String::from_utf8(body.to_vec()) {
@@ -154,7 +183,7 @@ impl Service for QuiViveService {
                         let entry = QuiViveEntry { id: id.clone(), val: "".to_string(), url: url };
                         let result = format!("{}/{}\n", external_url, id);
 
-                        if let Ok(_) = cache.insert(id.clone(), entry.clone()) {
+                        if let Ok(_) = cache.insert_with(id.clone(), entry.clone(), expiration) {
                             Response::new()
                                 .with_status(StatusCode::Ok)
                                 .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
@@ -192,6 +221,7 @@ impl Service for QuiViveService {
                 let id = self.gen_id().unwrap();
                 let cache = self.cache.clone();
                 let external_url = self.cfg.external_url.clone();
+                let expiration = self.cfg.default_expiration.map(|x| x as usize);
 
                 if !request.headers().has::<QuiViveDstUrl>() {
                     Box::new(futures::future::ok(Response::new()
@@ -210,7 +240,7 @@ impl Service for QuiViveService {
                             let entry = QuiViveEntry { id: id.clone(), val: value, url: url.to_string() };
                             let result = format!("{}/{}\n", external_url, id);
 
-                            if let Ok(_) = cache.insert(id.clone(), entry.clone()) {
+                            if let Ok(_) = cache.insert_with(id.clone(), entry.clone(), expiration) {
                                 Response::new()
                                     .with_status(StatusCode::Ok)
                                     .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
