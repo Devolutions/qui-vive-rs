@@ -15,9 +15,12 @@ use rand::{thread_rng, Rng};
 use regex::Regex;
 use time;
 
+use uuid::{Uuid};
+
 use url::{Url};
 
-use config::QuiViveConfig;
+use crate::QuiViveConfig;
+use crate::CustomIdFormat;
 
 header! { (QuiViveDstUrl, "QuiVive-DstUrl") => [String] }
 header! { (QuiViveIdParam, "QuiVive-IdParam") => [String] }
@@ -143,6 +146,23 @@ impl Service for QuiViveService {
                 let cache = self.cache.clone();
                 let external_url = self.cfg.external_url.clone();
                 let expiration = self.get_expiration(&request);
+
+                let bad_request = match self.cfg.custom_id_format {
+                    CustomIdFormat::None => true,
+                    CustomIdFormat::All => false,
+                    CustomIdFormat::Uuid => {
+                        if let Ok(_) = Uuid::parse_str(id.as_str()) {
+                            false
+                        } else {
+                            true
+                        }
+                    }
+                };
+
+                if bad_request {
+                    return Box::new(futures::future::ok(Response::new()
+                        .with_status(StatusCode::BadRequest)));
+                }
 
                 Box::new(request.body().concat2().map(move|body| {
                     if let Ok(value) = String::from_utf8(body.to_vec()) {

@@ -17,6 +17,7 @@ FLAGS:
 
 OPTIONS:
         --cache-type <type>                   The cache type (redis, memory)
+        --custom-id-format <format>           The custom id format [possible values: none, uuid, all]
         --default-expiration <expiration>     The default key expiration, in seconds
         --external-url <URL>                  The external URL (https://qui-vive.link)
         --id-charset <charset>                The generated id character set

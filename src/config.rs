@@ -2,6 +2,13 @@
 use clap::App;
 use std::env;
 
+#[derive(Clone,PartialEq)]
+pub enum CustomIdFormat {
+    None,
+    Uuid,
+    All,
+}
+
 #[derive(Clone)]
 pub struct QuiViveConfig {
     pub external_url: String,
@@ -11,6 +18,7 @@ pub struct QuiViveConfig {
     pub cache_type: Option<String>,
     pub id_length: u32,
     pub id_charset: String,
+    pub custom_id_format: CustomIdFormat,
     pub default_expiration: Option<u32>,
 }
 
@@ -31,6 +39,7 @@ impl QuiViveConfig {
             cache_type: None,
             id_length: ID_LENGTH,
             id_charset: ID_CHARSET.to_string(),
+            custom_id_format: CustomIdFormat::All,
             default_expiration: Some(86400), // 24 hours
         }
     }
@@ -68,6 +77,10 @@ impl QuiViveConfig {
 
         self.id_length = value_t!(matches, "id-length", u32).unwrap_or(9);
 
+        if let Some(id_charset) = matches.value_of("id-charset") {
+            self.id_charset = id_charset.to_string();
+        }
+
         if let Some(default_expiration) = matches.value_of("default-expiration") {
             if let Ok(default_expiration) = default_expiration.parse::<u32>() {
                 self.default_expiration = if default_expiration == 0 {
@@ -78,8 +91,13 @@ impl QuiViveConfig {
             }
         }
 
-        if let Some(id_charset) = matches.value_of("id-charset") {
-            self.id_charset = id_charset.to_string();
+        if let Some(custom_id_format) = matches.value_of("custom-id-format") {
+            self.custom_id_format = match custom_id_format.to_lowercase().as_str() {
+                "none" => CustomIdFormat::None,
+                "uuid" => CustomIdFormat::Uuid,
+                "all" => CustomIdFormat::All,
+                _ => CustomIdFormat::All,
+            }
         }
     }
 
@@ -117,6 +135,15 @@ impl QuiViveConfig {
         if let Ok(val) = env::var("DEFAULT_EXPIRATION") {
             if let Ok(default_expiration) = Some(val).unwrap().parse::<u32>() {
                 self.default_expiration = Some(default_expiration);
+            }
+        }
+
+        if let Ok(val) = env::var("CUSTOM_ID_FORMAT") {
+            self.custom_id_format = match val.to_lowercase().as_str() {
+                "none" => CustomIdFormat::None,
+                "uuid" => CustomIdFormat::Uuid,
+                "all" => CustomIdFormat::All,
+                _ => CustomIdFormat::All,
             }
         }
     }
