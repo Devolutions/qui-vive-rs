@@ -70,6 +70,12 @@ $ curl http://127.0.0.1:8080/key/f16a75c1-9804-4e10-85c0-b6a159837c0d
 this is my sample data
 ```
 
+The key can then be deleted:
+
+```
+$ curl -X DELETE http://127.0.0.1:8080/key/f16a75c1-9804-4e10-85c0-b6a159837c0d
+```
+
 ### URL shortener
 
 Create a short URL that will redirect to a longer one with a POST request on /url with the destination in the HTTP request body. The short URL that can be used to redirect to the long URL is returned in the HTTP response body.

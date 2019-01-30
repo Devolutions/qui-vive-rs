@@ -3,7 +3,7 @@ use mouscache;
 
 use hyper;
 use hyper::{Body, StatusCode, mime};
-use hyper::Method::{Get, Post};
+use hyper::Method::{Get, Post, Delete};
 use hyper::header::{ContentType, Location};
 use hyper::server::{Request, Response, Service};
 
@@ -203,6 +203,17 @@ impl Service for QuiViveService {
                             .with_status(StatusCode::NotFound)))
                     }
                 }
+            }
+            (Delete, ref x) if RE_KEY_ID.is_match(x) => {
+                let cap = RE_KEY_ID.captures(x).unwrap();
+                let id = cap[1].to_string();
+
+                let cache = self.cache.clone();
+                let _ = cache.remove::<String, QuiViveEntry>(id.clone());
+
+                // always return 200 OK, even if the resource did not exist (already deleted)
+                Box::new(futures::future::ok(Response::new()
+                    .with_status(StatusCode::Ok)))
             }
             (Post, ref x) if RE_URL.is_match(x) => {
                 let id = self.gen_id().unwrap();
