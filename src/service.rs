@@ -21,6 +21,7 @@ use config::QuiViveConfig;
 
 header! { (QuiViveDstUrl, "QuiVive-DstUrl") => [String] }
 header! { (QuiViveIdParam, "QuiVive-IdParam") => [String] }
+header! { (QuiViveExpiration, "QuiVive-Expiration") => [String] }
 
 #[derive(Cacheable, Clone, Debug)]
 #[cache(rename="QuiVive")] // use 'QuiVive' prefix
@@ -49,6 +50,19 @@ impl QuiViveService {
             Some(*rng.choose(id_charset)? as char)).collect();
         id
     }
+
+    fn get_expiration(&self, request: &Request) -> Option<usize> {
+        if let Some(expiration) = request.headers().get::<QuiViveExpiration>() {
+            if let Ok(expiration) = expiration.to_string().parse::<u32>() {
+                return if expiration == 0 {
+                    None
+                } else {
+                    Some(expiration as usize)
+                };
+            }
+        }
+        self.cfg.default_expiration.map(|x| x as usize)
+    }
 }
 
 impl Service for QuiViveService {
@@ -76,7 +90,7 @@ impl Service for QuiViveService {
             (Get, "/health") => {
                 let id = "health".to_string();
                 let input = format!("{}", get_timestamp());
-                let expiration = self.cfg.default_expiration.map(|x| x as usize);
+                let expiration = self.get_expiration(&request);
 
                 let entry = QuiViveEntry { id: id.clone(), val: input.clone(), url: "".to_string() };
                 let cache = self.cache.clone();
@@ -101,7 +115,7 @@ impl Service for QuiViveService {
                 let id = self.gen_id().unwrap();
                 let cache = self.cache.clone();
                 let external_url = self.cfg.external_url.clone();
-                let expiration = self.cfg.default_expiration.map(|x| x as usize);
+                let expiration = self.get_expiration(&request);
 
                 Box::new(request.body().concat2().map(move|body| {
                     if let Ok(value) = String::from_utf8(body.to_vec()) {
@@ -128,7 +142,7 @@ impl Service for QuiViveService {
                 let id = cap[1].to_string();
                 let cache = self.cache.clone();
                 let external_url = self.cfg.external_url.clone();
-                let expiration = self.cfg.default_expiration.map(|x| x as usize);
+                let expiration = self.get_expiration(&request);
 
                 Box::new(request.body().concat2().map(move|body| {
                     if let Ok(value) = String::from_utf8(body.to_vec()) {
@@ -174,7 +188,7 @@ impl Service for QuiViveService {
                 let id = self.gen_id().unwrap();
                 let cache = self.cache.clone();
                 let external_url = self.cfg.external_url.clone();
-                let expiration = self.cfg.default_expiration.map(|x| x as usize);
+                let expiration = self.get_expiration(&request);
 
                 Box::new(request.body().concat2().map(move|body| {
                     if let Ok(value) = String::from_utf8(body.to_vec()) {
@@ -221,7 +235,7 @@ impl Service for QuiViveService {
                 let id = self.gen_id().unwrap();
                 let cache = self.cache.clone();
                 let external_url = self.cfg.external_url.clone();
-                let expiration = self.cfg.default_expiration.map(|x| x as usize);
+                let expiration = self.get_expiration(&request);
 
                 if !request.headers().has::<QuiViveDstUrl>() {
                     Box::new(futures::future::ok(Response::new()

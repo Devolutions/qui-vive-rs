@@ -69,8 +69,12 @@ impl QuiViveConfig {
         self.id_length = value_t!(matches, "id-length", u32).unwrap_or(9);
 
         if let Some(default_expiration) = matches.value_of("default-expiration") {
-            if let Ok(default_expiration) = Some(default_expiration).unwrap().parse::<u32>() {
-                self.default_expiration = Some(default_expiration);
+            if let Ok(default_expiration) = default_expiration.parse::<u32>() {
+                self.default_expiration = if default_expiration == 0 {
+                    None
+                } else {
+                    Some(default_expiration)
+                };
             }
         }
 
