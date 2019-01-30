@@ -1,10 +1,11 @@
 [package]
 name = "qui-vive"
-version = "0.1.0"
+version = "0.2.0"
+edition = "2018"
 readme = "README.md"
 license = "MIT/Apache-2.0"
-homepage = "https://github.com/wayk/qui-vive-rs"
-repository = "https://github.com/wayk/qui-vive-rs"
+homepage = "https://github.com/devolutions/qui-vive-rs"
+repository = "https://github.com/devolutions/qui-vive-rs"
 keywords = ["key", "value", "key-value", "url", "shortener"]
 authors = ["Marc-André Moreau <marcandre.moreau@gmail.com>"]
 description = "A key-value store and url shortener that is always on alert"
@@ -20,8 +21,9 @@ log = "0.4.1"
 rand = "0.4"
 url = "1.7"
 time = "0.1"
-mouscache = "0.4"
+uuid = "0.7"
+mouscache = "0.5.3"
 mouscache_derive = "0.4"
-clap = { version = "2.31", features = ["yaml"] }
+clap = { version = "2.32", features = ["yaml"] }
 
 

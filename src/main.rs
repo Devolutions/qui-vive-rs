@@ -26,6 +26,7 @@ use std::net::{SocketAddr};
 
 mod config;
 use config::QuiViveConfig;
+use config::CustomIdFormat;
 
 mod service;
 use service::QuiViveService;

@@ -37,6 +37,20 @@ args:
         value_name: charset
         help: The generated id character set
         takes_value: true
+    - custom-id-format:
+          long: custom-id-format
+          value_name: format
+          help: The custom id format
+          takes_value: true
+          possible_values:
+              - none
+              - uuid
+              - all
+    - default-expiration:
+          long: default-expiration
+          value_name: expiration
+          help: The default key expiration, in seconds
+          takes_value: true
     - verbose:
         short: v
         multiple: true

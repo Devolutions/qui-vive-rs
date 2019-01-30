@@ -1,6 +1,6 @@
 # build container
 
-FROM rust:1-stretch as rust-build
+FROM rust:1.32 as rust-build
 LABEL maintainer "Devolutions Inc."
 
 WORKDIR /opt/qui-vive
