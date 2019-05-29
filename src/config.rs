@@ -22,7 +22,7 @@ pub struct QuiViveConfig {
     pub default_expiration: Option<u32>,
 }
 
-const ID_LENGTH: u32 = 9;
+const ID_LENGTH: u32 = 12;
 
 const ID_CHARSET: &str = "23456789\
             abcdefghjkimnpqrstuvwxyz\

@@ -22,6 +22,12 @@ use url::{Url};
 use crate::QuiViveConfig;
 use crate::CustomIdFormat;
 
+static NOINDEX: &str = "noindex";
+header! { (XRobotsTag, "X-Robots-Tag") => [String] } // noindex
+
+static NOSNIFF: &str = "nosniff";
+header! { (XContentTypeOptions, "X-Content-Type-Options") => [String] } // nosniff
+
 header! { (QuiViveDstUrl, "QuiVive-DstUrl") => [String] }
 header! { (QuiViveIdParam, "QuiVive-IdParam") => [String] }
 header! { (QuiViveExpiration, "QuiVive-Expiration") => [String] }
@@ -129,6 +135,8 @@ impl Service for QuiViveService {
                             Response::new()
                                 .with_status(StatusCode::Ok)
                                 .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
+                                .with_header(XContentTypeOptions(NOSNIFF.to_string()))
+                                .with_header(XRobotsTag(NOINDEX.to_string()))
                                 .with_body(result)
                         } else {
                             Response::new()
@@ -173,6 +181,8 @@ impl Service for QuiViveService {
                             Response::new()
                                 .with_status(StatusCode::Ok)
                                 .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
+                                .with_header(XContentTypeOptions(NOSNIFF.to_string()))
+                                .with_header(XRobotsTag(NOINDEX.to_string()))
                                 .with_body(result)
                         } else {
                             Response::new()
@@ -195,6 +205,8 @@ impl Service for QuiViveService {
                         Box::new(futures::future::ok(Response::new()
                             .with_status(StatusCode::Ok)
                             .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
+                            .with_header(XContentTypeOptions(NOSNIFF.to_string()))
+                            .with_header(XRobotsTag(NOINDEX.to_string()))
                             .with_body(entry.val)
                         ))
                     }
@@ -232,6 +244,8 @@ impl Service for QuiViveService {
                             Response::new()
                                 .with_status(StatusCode::Ok)
                                 .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
+                                .with_header(XContentTypeOptions(NOSNIFF.to_string()))
+                                .with_header(XRobotsTag(NOINDEX.to_string()))
                                 .with_body(result)
                         } else {
                             Response::new()
@@ -289,6 +303,8 @@ impl Service for QuiViveService {
                                 Response::new()
                                     .with_status(StatusCode::Ok)
                                     .with_header(ContentType(mime::TEXT_PLAIN_UTF_8))
+                                    .with_header(XContentTypeOptions(NOSNIFF.to_string()))
+                                    .with_header(XRobotsTag(NOINDEX.to_string()))
                                     .with_body(result)
                             } else {
                                 Response::new()
