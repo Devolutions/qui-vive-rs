@@ -125,9 +125,13 @@ impl Service for QuiViveService {
                 let cache = self.cache.clone();
                 let external_url = self.cfg.external_url.clone();
                 let expiration = self.get_expiration(&request);
+                let max_value_size = self.cfg.max_value_size;
 
                 Box::new(request.body().concat2().map(move|body| {
-                    if let Ok(value) = String::from_utf8(body.to_vec()) {
+                    if body.len() > max_value_size {
+                        Response::new()
+                            .with_status(StatusCode::PayloadTooLarge)
+                    } else if let Ok(value) = String::from_utf8(body.to_vec()) {
                         let entry = QuiViveEntry { id: id.clone(), val: value, url: "".to_string() };
                         let result = format!("{}/key/{}\n", external_url, id.clone());
 
@@ -154,6 +158,7 @@ impl Service for QuiViveService {
                 let cache = self.cache.clone();
                 let external_url = self.cfg.external_url.clone();
                 let expiration = self.get_expiration(&request);
+                let max_value_size = self.cfg.max_value_size;
 
                 let bad_request = match self.cfg.custom_id_format {
                     CustomIdFormat::None => true,
@@ -173,7 +178,10 @@ impl Service for QuiViveService {
                 }
 
                 Box::new(request.body().concat2().map(move|body| {
-                    if let Ok(value) = String::from_utf8(body.to_vec()) {
+                    if body.len() > max_value_size {
+                        Response::new()
+                            .with_status(StatusCode::PayloadTooLarge)
+                    } else if let Ok(value) = String::from_utf8(body.to_vec()) {
                         let entry = QuiViveEntry { id: id.clone(), val: value, url: "".to_string() };
                         let result = format!("{}/key/{}\n", external_url, id.clone());
 
@@ -232,9 +240,13 @@ impl Service for QuiViveService {
                 let cache = self.cache.clone();
                 let external_url = self.cfg.external_url.clone();
                 let expiration = self.get_expiration(&request);
+                let max_value_size = self.cfg.max_value_size;
 
                 Box::new(request.body().concat2().map(move|body| {
-                    if let Ok(value) = String::from_utf8(body.to_vec()) {
+                    if body.len() > max_value_size {
+                        Response::new()
+                            .with_status(StatusCode::PayloadTooLarge)
+                    } else if let Ok(value) = String::from_utf8(body.to_vec()) {
                         let url = value.clone();
 
                         let entry = QuiViveEntry { id: id.clone(), val: "".to_string(), url: url };
@@ -281,6 +293,7 @@ impl Service for QuiViveService {
                 let cache = self.cache.clone();
                 let external_url = self.cfg.external_url.clone();
                 let expiration = self.get_expiration(&request);
+                let max_value_size = self.cfg.max_value_size;
 
                 if !request.headers().has::<QuiViveDstUrl>() {
                     Box::new(futures::future::ok(Response::new()
@@ -295,7 +308,10 @@ impl Service for QuiViveService {
                     }
 
                     Box::new(request.body().concat2().map(move |body| {
-                        if let Ok(value) = String::from_utf8(body.to_vec()) {
+                        if body.len() > max_value_size {
+                            Response::new()
+                                .with_status(StatusCode::PayloadTooLarge)
+                        } else if let Ok(value) = String::from_utf8(body.to_vec()) {
                             let entry = QuiViveEntry { id: id.clone(), val: value, url: url.to_string() };
                             let result = format!("{}/{}\n", external_url, id);
 

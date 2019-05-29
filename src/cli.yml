@@ -51,6 +51,11 @@ args:
           value_name: expiration
           help: The default key expiration, in seconds
           takes_value: true
+    - max-value-size:
+          long: max-value-size
+          value_name: size
+          help: The maximum value size, in bytes
+          takes_value: true
     - verbose:
         short: v
         multiple: true
