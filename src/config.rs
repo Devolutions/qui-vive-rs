@@ -20,6 +20,7 @@ pub struct QuiViveConfig {
     pub id_charset: String,
     pub custom_id_format: CustomIdFormat,
     pub default_expiration: Option<u32>,
+    pub max_value_size: usize,
 }
 
 const ID_LENGTH: u32 = 12;
@@ -41,6 +42,7 @@ impl QuiViveConfig {
             id_charset: ID_CHARSET.to_string(),
             custom_id_format: CustomIdFormat::All,
             default_expiration: Some(86400), // 24 hours
+            max_value_size: 1024*1024 // 1MB
         }
     }
 
@@ -99,6 +101,12 @@ impl QuiViveConfig {
                 _ => CustomIdFormat::All,
             }
         }
+
+        if let Some(max_value_size) = matches.value_of("max-value-size") {
+            if let Ok(max_value_size) = max_value_size.parse::<usize>() {
+                self.max_value_size = max_value_size;
+            }
+        }
     }
 
     pub fn load_env(&mut self) {
@@ -134,7 +142,11 @@ impl QuiViveConfig {
 
         if let Ok(val) = env::var("DEFAULT_EXPIRATION") {
             if let Ok(default_expiration) = Some(val).unwrap().parse::<u32>() {
-                self.default_expiration = Some(default_expiration);
+                self.default_expiration = if default_expiration == 0 {
+                    None
+                } else {
+                    Some(default_expiration)
+                };
             }
         }
 
@@ -144,6 +156,12 @@ impl QuiViveConfig {
                 "uuid" => CustomIdFormat::Uuid,
                 "all" => CustomIdFormat::All,
                 _ => CustomIdFormat::All,
+            }
+        }
+
+        if let Ok(val) = env::var("MAX_VALUE_SIZE") {
+            if let Ok(max_value_size) = Some(val).unwrap().parse::<usize>() {
+                self.max_value_size = max_value_size;
             }
         }
     }
